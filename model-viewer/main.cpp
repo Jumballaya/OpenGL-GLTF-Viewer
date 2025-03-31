@@ -6,21 +6,39 @@
 
 int main()
 {
-  std::vector<float> vertices = {
-      -0.5f, -0.5f, 0.0f,
-      0.0f, 0.5f, 0.0f,
-      0.5f, -0.5f, 0.0f};
-  std::vector<unsigned int> indices = {0, 1, 2};
+  std::vector<float> positions = {
+      -1.0f, -1.0f, 0.0f,
+      -1.0f, 1.0f, 0.0f,
+      1.0f, 1.0f, 0.0f,
+      1.0f, -1.0f, 0.0f};
+  std::vector<float> texCoords = {
+      0.0f,
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,
+      1.0f,
+      0.0f,
+  };
+  std::vector<unsigned int> indices = {0, 3, 2, 0, 2, 1};
 
   Core::Window window(800, 600, "Triangle");
 
-  Core::GL::GLBuffer vbo(Core::GL::BufferType::Vertex);
+  Core::GL::GLBuffer vboPos(Core::GL::BufferType::Vertex);
+  Core::GL::GLBuffer vboUvs(Core::GL::BufferType::Vertex);
   Core::GL::GLBuffer ebo(Core::GL::BufferType::Index);
   Core::GL::VAO vao;
 
-  if (auto error = vbo.setData(std::span(vertices)); error)
+  if (auto error = vboPos.setData(std::span(positions)); error)
   {
-    std::cerr << "VBO Error: " << *error << std::endl;
+    std::cerr << "Positions VBO Error: " << *error << std::endl;
+    return -1;
+  }
+
+  if (auto error = vboUvs.setData(std::span(texCoords)); error)
+  {
+    std::cerr << "Tex Coords VBO Error: " << *error << std::endl;
     return -1;
   }
 
@@ -30,7 +48,8 @@ int main()
     return -1;
   }
 
-  vao.addVertexBuffer(vbo, 0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
+  vao.addVertexBuffer(vboPos, 0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
+  vao.addVertexBuffer(vboUvs, 1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
   vao.setIndexBuffer(ebo);
 
   Core::GL::GLShader shader("assets/shaders/basic/vertex.glsl", "assets/shaders/basic/fragment.glsl");
@@ -38,6 +57,9 @@ int main()
   glEnable(GL_DEBUG_OUTPUT);
   glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
                          { std::cerr << "OpenGL Debug Message: " << message << std::endl; }, nullptr);
+
+  Core::GL::GLTexture texture;
+  texture.loadFromFile("assets/textures/tree.jpg");
 
   while (!window.shouldClose())
   {
@@ -48,7 +70,8 @@ int main()
 
     vao.bind();
     shader.use();
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+    shader.setTexture("u_texture", texture, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
     vao.unbind();
 
     window.swapBuffers();
